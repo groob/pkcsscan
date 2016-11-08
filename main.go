@@ -86,7 +86,7 @@ func maybeFind(input []byte, fn parseFunc) map[int]interface{} {
 func withOffset(data []byte, off int, fn parseFunc) (result interface{}, rest []byte) {
 	offset := data[off:]
 	var err error
-	for i := 1; i < len(offset); i++ {
+	for i := 1; i <= len(offset); i++ {
 		result, err = fn(offset[:i])
 		if err == nil {
 			break
