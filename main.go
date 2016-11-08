@@ -58,7 +58,11 @@ func scanAll(input []byte, funcs ...parseFunc) {
 	for _, fn := range funcs {
 		results := maybeFind(input, fn)
 		for idx, kind := range results {
-			fmt.Printf("found %s at index: %d\n", reflect.TypeOf(kind), idx)
+			if certificate, ok := kind.(*x509.Certificate); ok {
+				fmt.Printf("found %s at index: %d, CN=%q \n", reflect.TypeOf(kind), idx, certificate.Subject.CommonName)
+			} else {
+				fmt.Printf("found %s at index: %d\n", reflect.TypeOf(kind), idx)
+			}
 		}
 	}
 }
