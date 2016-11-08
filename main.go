@@ -68,15 +68,14 @@ func maybeFind(input []byte, fn parseFunc) map[int]interface{} {
 	var result interface{}
 	var data []byte
 	data = input
-	var cursor = 0
 	for {
 		idx := bytes.Index(data, asn1sequence)
 		if idx == -1 {
 			break
 		}
-		cursor = idx + cursor
 		result, data = withOffset(data, idx, fn)
 		if result != nil {
+			cursor := (len(input) - len(data) - 1)
 			results[cursor] = result
 		}
 	}
