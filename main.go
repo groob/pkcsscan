@@ -40,7 +40,7 @@ var (
 
 func wrapPKCS1(data []byte) (interface{}, error) {
 	result, err := x509.ParsePKCS1PrivateKey(data)
-	if result != nil && err != nil {
+	if result != nil && err == nil {
 		return result, nil
 	}
 	return nil, err
@@ -48,7 +48,7 @@ func wrapPKCS1(data []byte) (interface{}, error) {
 
 func wrapCert(data []byte) (interface{}, error) {
 	result, err := x509.ParseCertificate(data)
-	if result != nil && err != nil {
+	if result != nil && err == nil {
 		return result, nil
 	}
 	return nil, err
@@ -60,7 +60,6 @@ func scanAll(input []byte, funcs ...parseFunc) {
 		for idx, kind := range results {
 			fmt.Printf("found %s at index: %d\n", reflect.TypeOf(kind), idx)
 		}
-
 	}
 }
 
