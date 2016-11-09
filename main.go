@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"sync"
 )
 
 func main() {
@@ -15,13 +16,28 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var funcs = []parseFunc{
-		publicKey,
-		pkcs8priv,
-		pkcs1priv,
-		cert,
+	var wg sync.WaitGroup
+	offsets := findOffsets(data, asn1sequence)
+	for _, offset := range offsets {
+		wg.Add(1)
+		go func(at int) {
+			defer wg.Done()
+			maybeParse(data, at, cert)
+		}(offset)
+		go func(at int) {
+			defer wg.Done()
+			maybeParse(data, at, pkcs1priv)
+		}(offset)
+		go func(at int) {
+			defer wg.Done()
+			maybeParse(data, at, pkcs8priv)
+		}(offset)
+		go func(at int) {
+			defer wg.Done()
+			maybeParse(data, at, publicKey)
+		}(offset)
 	}
-	scanAll(data, funcs...)
+	wg.Wait()
 }
 
 // asn1Sequence is the delimiter used to parse PKCS data.
@@ -54,39 +70,22 @@ func wrapCert(data []byte) (interface{}, error) {
 	return nil, err
 }
 
-func scanAll(input []byte, funcs ...parseFunc) {
-	for _, fn := range funcs {
-		results := maybeFind(input, fn)
-		for idx, kind := range results {
-			if certificate, ok := kind.(*x509.Certificate); ok {
-				fmt.Printf("found %s at index: %d, CN=%q \n", reflect.TypeOf(kind), idx, certificate.Subject.CommonName)
-			} else {
-				fmt.Printf("found %s at index: %d\n", reflect.TypeOf(kind), idx)
-			}
-		}
-	}
-}
-
-func maybeFind(input []byte, fn parseFunc) map[int]interface{} {
-	results := make(map[int]interface{})
-	var result interface{}
-	var data []byte
-	data = input
+func findOffsets(data []byte, delim []byte) []int {
+	total := len(data)
+	var all []int
 	for {
-		idx := bytes.Index(data, asn1sequence)
+		idx := bytes.Index(data, delim)
 		if idx == -1 {
 			break
 		}
-		result, data = withOffset(data, idx, fn)
-		if result != nil {
-			cursor := (len(input) - len(data) - 1)
-			results[cursor] = result
-		}
+		data = data[idx+1:]
+		cursor := (total - len(data) - 1)
+		all = append(all, cursor)
 	}
-	return results
+	return all
 }
 
-func withOffset(data []byte, off int, fn parseFunc) (result interface{}, rest []byte) {
+func withOffset(data []byte, off int, fn parseFunc) (result interface{}) {
 	offset := data[off:]
 	var err error
 	for i := 1; i <= len(offset); i++ {
@@ -95,5 +94,18 @@ func withOffset(data []byte, off int, fn parseFunc) (result interface{}, rest []
 			break
 		}
 	}
-	return result, offset[1:]
+	return result
+}
+
+func maybeParse(data []byte, idx int, fn parseFunc) interface{} {
+	result := withOffset(data, idx, fn)
+	if result != nil {
+		if certificate, ok := result.(*x509.Certificate); ok {
+			fmt.Printf("found %s at index: %d, CN=%q \n", reflect.TypeOf(result), idx, certificate.Subject.CommonName)
+		} else {
+			fmt.Printf("found %s at index: %d\n", reflect.TypeOf(result), idx)
+		}
+		return result
+	}
+	return nil
 }
