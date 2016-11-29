@@ -19,19 +19,26 @@ func main() {
 	var wg sync.WaitGroup
 	offsets := findOffsets(data, asn1sequence)
 	for _, offset := range offsets {
+
 		wg.Add(1)
 		go func(at int) {
 			defer wg.Done()
 			maybeParse(data, at, cert)
 		}(offset)
+
+		wg.Add(1)
 		go func(at int) {
 			defer wg.Done()
 			maybeParse(data, at, pkcs1priv)
 		}(offset)
+
+		wg.Add(1)
 		go func(at int) {
 			defer wg.Done()
 			maybeParse(data, at, pkcs8priv)
 		}(offset)
+
+		wg.Add(1)
 		go func(at int) {
 			defer wg.Done()
 			maybeParse(data, at, publicKey)
